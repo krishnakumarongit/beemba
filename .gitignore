@@ -1,18 +1,95 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+import React,{useState, useEffect, useRef} from 'react'
+import logo from './logo.svg';
+import './App.css';
+import InfiniteScroll from "react-infinite-scroll-component";
+import axios from 'axios';
 
-# Other files and folders
-.settings/
+function App() {
+  const divRef = useRef(null);
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+  const scrollToTop = () => {
+    divRef.current.scroll({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+  const fetchMoreData = async(searchParam='', clearSearch=false) => {
+    //"filters":{"name":{"value":"minna","matchMode":"contains"}
+    let pageParam = page;
+    let baseURL = `https://www.primefaces.org/data/customers/?lazyEvent=`;
+    let params = {"first": pageParam, "rows":10}
+    let searchQuery = '';
+    if (search !== '') {
+      params = {...params, "filters":{"name":{"value": search, "matchMode":"contains"}}};
+    }
+    if (searchParam !=''){
+      params = {"first": 0, "rows":10, "filters":{"name":{"value": search, "matchMode":"contains"}}};
+      pageParam = 0;
+    }
+    if (clearSearch) {
+      params = {"first": 0, "rows":10};
+      pageParam = 0;
+    }
+    baseURL = baseURL+JSON.stringify(params);
+    let next = (pageParam+10);
+    setPage(next);
+    const kk = await axios.get(baseURL);
+    if (searchParam !='' || clearSearch) {
+      setItems([...kk.data.customers]);
+      scrollToTop();
+    } else {
+      setItems([...items, ...kk.data.customers]);
+    }
+   
+  };
+
+  const setSearchAction = () => {
+    if (search === '') {
+      fetchMoreData(search, true);
+    } else {
+      fetchMoreData(search);
+    }
+  }
+
+  useEffect(()=>{
+    fetchMoreData();
+  }, []);
+  return (
+
+    <InfiniteScroll
+    dataLength={items.length}
+    next={fetchMoreData}
+    hasMore={true}
+    scrollableTarget="kk"
+  >
+      <div id="kk" ref={divRef} class="tableFixHead" style={{marginTop: '10px'}}>
+      <table>
+        <thead>
+          <tr>
+            <th>Col 1</th>
+            <th>Col 2
+
+              <input type="text" value={search} onChange={(e)=>{setSearch(e.target.value)}} ></input>
+              <button onClick={setSearchAction}>Submit</button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+        {items.map((i, index) => {
+          return (<tr>
+            <td>{i.id}</td>
+            <td>{i.name}</td>
+          </tr>)
+        })}
+        </tbody>
+      </table>
+    </div>
+    </InfiniteScroll>
+  );
+}
+
+export default App;
